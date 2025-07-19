@@ -3,8 +3,6 @@ AppName=Love Ribbon 18+ Patch
 AppVersion=1.0
 DefaultDirName={code:GetGameInstallPath}
 DisableDirPage=yes
-Uninstallable=yes
-UninstallDisplayIcon={app}\game\hpatch.rpa
 OutputBaseFilename=LoveRibbon18PatchInstaller
 Compression=lzma
 SolidCompression=yes
@@ -14,29 +12,98 @@ SetupIconFile=icon.ico
 [Files]
 Source: "hpatch.rpa"; DestDir: "{app}\game"; Flags: ignoreversion
 
-[Icons]
-Name: "{group}\Uninstall Love Ribbon 18+ Patch"; Filename: "{uninstallexe}"
-
 [Run]
 Filename: "{app}\game\hpatch.rpa"; Description: "Installed Patch"; Flags: postinstall shellexec nowait
-; Show a cute confirmation
+
 [Code]
-function GetSteamPath(): string;
+function PosEx(const SubStr, S: string; Offset: Integer): Integer;
 var
-  Key: string;
+  i: Integer;
 begin
-  Key := 'Software\Valve\Steam';
-  if RegQueryStringValue(HKEY_CURRENT_USER, Key, 'SteamPath', Result) then
+  for i := Offset to Length(S) - Length(SubStr) + 1 do
+  begin
+    if Copy(S, i, Length(SubStr)) = SubStr then
+    begin
+      Result := i;
+      Exit;
+    end;
+  end;
+  Result := 0;
+end;
+
+function SplitString(const S, Delimiter: String): TArrayOfString;
+var
+  P, Start: Integer;
+  List: TArrayOfString;
+  I: Integer;
+begin
+  SetArrayLength(List, 0);
+  P := Pos(Delimiter, S);
+  Start := 1;
+  I := 0;
+  while P > 0 do
+  begin
+    SetArrayLength(List, I + 1);
+    List[I] := Copy(S, Start, P - Start);
+    Start := P + Length(Delimiter);
+    P := PosEx(Delimiter, S, Start);
+    Inc(I);
+  end;
+  SetArrayLength(List, I + 1);
+  List[I] := Copy(S, Start, Length(S) - Start + 1);
+  Result := List;
+end;
+
+function GetSteamPath(): string;
+begin
+  if RegQueryStringValue(HKEY_LOCAL_MACHINE, 'SOFTWARE\Wow6432Node\Valve\Steam', 'InstallPath', Result) then
     Result := Result
   else
     Result := '';
+end;
+
+function GetLibraryPaths(SteamPath: String): TArrayOfString;
+var
+  VDFPath, Contents, Line: String;
+  Lines: TArrayOfString;
+  I: Integer;
+  Paths: TArrayOfString;
+begin
+  SetArrayLength(Paths, 1);
+  Paths[0] := SteamPath; // always include main Steam folder
+
+  VDFPath := SteamPath + '\steamapps\libraryfolders.vdf';
+  if not LoadStringFromFile(VDFPath, Contents) then
+  begin
+    Result := Paths;
+    Exit;
+  end;
+
+  Lines := SplitString(Contents, #10);
+  for I := 0 to GetArrayLength(Lines)-1 do
+  begin
+    Line := Trim(Lines[I]);
+    if Pos('"path"', Line) > 0 then
+    begin
+      // Extract quoted value
+      Line := Copy(Line, Pos('"path"', Line) + 6, Length(Line));
+      Line := Trim(Line);
+      if (Length(Line) > 2) and (Line[1] = '"') then
+      begin
+        Line := Copy(Line, 2, Pos('"', Copy(Line, 2, Length(Line)-1)) - 1);
+        SetArrayLength(Paths, GetArrayLength(Paths)+1);
+        Paths[GetArrayLength(Paths)-1] := Line;
+      end;
+    end;
+  end;
+  Result := Paths;
 end;
 
 function ReadStringFromFile(const FileName, Key: string): string;
 var
   FileContents, Line: AnsiString;
   Lines: TArrayOfString;
-  I: Integer;
+  I, P: Integer;
 begin
   Result := '';
   if not LoadStringFromFile(FileName, FileContents) then Exit;
@@ -46,8 +113,14 @@ begin
     Line := Trim(Lines[I]);
     if Pos('"' + Key + '"', Line) = 1 then
     begin
-      Result := Trim(StringChange(Line, ['"' + Key + '"', '', '"', '', '\', '']));
-      Result := Copy(Result, Pos(':', Result) + 1, MaxInt);
+      P := Pos('"', Copy(Line, Length(Key) + 3, Length(Line)));
+      if P > 0 then
+      begin
+        Line := Copy(Line, Length(Key) + 3 + P, Length(Line));
+        P := Pos('"', Line);
+        if P > 0 then
+          Result := Copy(Line, 1, P - 1);
+      end;
       Exit;
     end;
   end;
@@ -55,30 +128,31 @@ end;
 
 function GetGameInstallPath(Param: String): String;
 var
-  SteamPath, LibVDF, Manifest, InstallDir, GamePath: String;
+  SteamPath, ManifestPath, InstallDir, GamePath: String;
+  Libraries: TArrayOfString;
   I: Integer;
-  LibPath: String;
 begin
   SteamPath := GetSteamPath();
-  LibVDF := SteamPath + '\steamapps\libraryfolders.vdf';
-  for I := 0 to 10 do begin
-    LibPath := ReadStringFromFile(LibVDF, IntToStr(I));
-    if LibPath = '' then continue;
-    Manifest := LibPath + '\steamapps\appmanifest_559610.acf';
-    if FileExists(Manifest) then begin
-      InstallDir := ReadStringFromFile(Manifest, 'installdir');
-      GamePath := LibPath + '\steamapps\common\' + InstallDir;
+  Libraries := GetLibraryPaths(SteamPath);
+  for I := 0 to GetArrayLength(Libraries)-1 do
+  begin
+    ManifestPath := Libraries[I] + '\steamapps\appmanifest_559610.acf';
+    if FileExists(ManifestPath) then
+    begin
+      InstallDir := ReadStringFromFile(ManifestPath, 'installdir');
+      GamePath := Libraries[I] + '\steamapps\common\' + InstallDir;
       Result := GamePath;
       Exit;
     end;
   end;
-  // fallback
+
+  // fallback if nothing worked
   Result := ExpandConstant('{pf}\Steam\steamapps\common\Love Ribbon');
 end;
 
-// Show message box after install finishes
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
+  MsgBox('Installer is targeting: ' + GetGameInstallPath(''), mbInformation, MB_OK);
   if CurStep = ssPostInstall then begin
     MsgBox('Censourship is never the answer, especially for such loving sisters.', mbInformation, MB_OK);
   end;
