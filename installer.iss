@@ -64,7 +64,8 @@ end;
 
 function GetLibraryPaths(SteamPath: String): TArrayOfString;
 var
-  VDFPath, Contents, Line: String;
+  VDFPath, Line: String;
+  Contents: AnsiString; // Changed from String to AnsiString
   Lines: TArrayOfString;
   I: Integer;
   Paths: TArrayOfString;
@@ -145,9 +146,6 @@ begin
       Exit;
     end;
   end;
-
-  // fallback if nothing worked
-  Result := ExpandConstant('{pf}\Steam\steamapps\common\Love Ribbon');
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
