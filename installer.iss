@@ -4,7 +4,7 @@ AppVersion=1.0
 ; use a default that is unlikely to be a real directory
 DefaultDirName={pf}\LoveRibbon
 DisableDirPage=yes
-OutputBaseFilename=LoveRibbon18PatchInstaller
+OutputBaseFilename=LoveRibbonCensouredPatchInstaller
 Compression=lzma
 SolidCompression=yes
 WizardImageFile=banner.bmp
