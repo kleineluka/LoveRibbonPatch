@@ -1,7 +1,8 @@
 [Setup]
-AppName=Love Ribbon 18+ Patch
+AppName=Love Ribbon Censoured Patch
 AppVersion=1.0
-DefaultDirName={code:GetGameInstallPath}
+; use a default that is unlikely to be a real directory
+DefaultDirName={pf}\LoveRibbon
 DisableDirPage=yes
 OutputBaseFilename=LoveRibbon18PatchInstaller
 Compression=lzma
@@ -13,9 +14,12 @@ SetupIconFile=icon.ico
 Source: "hpatch.rpa"; DestDir: "{app}\game"; Flags: ignoreversion
 
 [Run]
-Filename: "{app}\game\hpatch.rpa"; Description: "Installed Patch"; Flags: postinstall shellexec nowait
+;Filename: "{app}\game\hpatch.rpa"; Description: "Installed Patch"; Flags: postinstall shellexec nowait
 
 [Code]
+var
+  GamePath: String;
+
 function PosEx(const SubStr, S: string; Offset: Integer): Integer;
 var
   i: Integer;
@@ -65,13 +69,13 @@ end;
 function GetLibraryPaths(SteamPath: String): TArrayOfString;
 var
   VDFPath, Line: String;
-  Contents: AnsiString; // Changed from String to AnsiString
+  Contents: AnsiString;
   Lines: TArrayOfString;
   I: Integer;
   Paths: TArrayOfString;
 begin
   SetArrayLength(Paths, 1);
-  Paths[0] := SteamPath; // always include main Steam folder
+  Paths[0] := SteamPath; 
 
   VDFPath := SteamPath + '\steamapps\libraryfolders.vdf';
   if not LoadStringFromFile(VDFPath, Contents) then
@@ -86,7 +90,6 @@ begin
     Line := Trim(Lines[I]);
     if Pos('"path"', Line) > 0 then
     begin
-      // Extract quoted value
       Line := Copy(Line, Pos('"path"', Line) + 6, Length(Line));
       Line := Trim(Line);
       if (Length(Line) > 2) and (Line[1] = '"') then
@@ -129,7 +132,7 @@ end;
 
 function GetGameInstallPath(Param: String): String;
 var
-  SteamPath, ManifestPath, InstallDir, GamePath: String;
+  SteamPath, ManifestPath, InstallDir: String;
   Libraries: TArrayOfString;
   I: Integer;
 begin
@@ -141,17 +144,31 @@ begin
     if FileExists(ManifestPath) then
     begin
       InstallDir := ReadStringFromFile(ManifestPath, 'installdir');
-      GamePath := Libraries[I] + '\steamapps\common\' + InstallDir;
-      Result := GamePath;
+      Result := Libraries[I] + '\steamapps\common\' + InstallDir;
       Exit;
     end;
+  end;
+  Result := '';
+end;
+
+procedure InitializeWizard();
+begin
+  GamePath := GetGameInstallPath('');
+  if GamePath <> '' then
+  begin
+    WizardForm.DirEdit.Text := GamePath;
+  end
+  else
+  begin
+    MsgBox('Love Ribbon installation not found. Please make sure the game is installed through Steam.', mbError, MB_OK);
+    Abort;
   end;
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
-  MsgBox('Installer is targeting: ' + GetGameInstallPath(''), mbInformation, MB_OK);
-  if CurStep = ssPostInstall then begin
-    MsgBox('Censourship is never the answer, especially for such loving sisters.', mbInformation, MB_OK);
+  if CurStep = ssPostInstall then
+  begin
+    MsgBox('Censorship is never the answer, especially for such loving sisters.', mbInformation, MB_OK);
   end;
 end;
