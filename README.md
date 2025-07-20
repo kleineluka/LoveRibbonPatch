@@ -9,3 +9,6 @@ Find the patch file [here](https://raw.githubusercontent.com/kleineluka/LoveRibb
 
 ### Installing with the Installer
 Download the installer from the [releases page](https://github.com/kleineluka/LoveRibbonPatch/releases/tag/Stable) and run it. It only supports Windows and Steam installations of the game. The installer will automatically find the game directory and install the patch for you. The manual installation method is still available if you prefer that or don't have Windows/Steam.
+
+### Extras
+I also decompiled the patch, which can be found at patch.rpy. This is kinda useless, but it's there.. for being there, I guess.
